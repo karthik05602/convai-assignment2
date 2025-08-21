@@ -14,13 +14,15 @@ from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
 
 # --- 1. Cached Loading of All Models and Artifacts ---
+from peft import PeftModel
+
 @st.cache_resource
 def load_resources(ft_repo_id):
     """Load all models and pre-built RAG artifacts from files and the Hub."""
     nltk.download('punkt', quiet=True)
     nltk.download('stopwords', quiet=True)
 
-    # Load RAG artifacts from local files
+    # --- Load RAG Artifacts (No changes here) ---
     try:
         faiss_index = faiss.read_index("faiss_index.bin")
         with open("bm25_index.pkl", "rb") as f:
@@ -28,21 +30,33 @@ def load_resources(ft_repo_id):
         with open("chunks.json", "r") as f:
             chunks_with_metadata = json.load(f)
     except FileNotFoundError as e:
-        st.error(f"A required RAG artifact file was not found: {e}. Ensure all .bin, .pkl, and .json files are in the repository.")
+        st.error(f"A required artifact file was not found: {e}.")
         return None
 
-    # Load models from Hugging Face Hub
+    # --- RAG Model Loading (No changes here) ---
     embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-    # Use a smaller, faster generator model suitable for free hosting
     rag_generator = pipeline('text2text-generation', model="google/flan-t5-base") 
     
-    # Load your fine-tuned model from the Hub
+    # --- CORRECTED Fine-Tuned Model Loading ---
+    ft_generator = None
     try:
-        ft_generator = pipeline('text-generation', model=ft_repo_id)
+        # Step 1: Load the original base model (GPT-2)
+        base_model_name = "gpt2"
+        base_model = AutoModelForCausalLM.from_pretrained(base_model_name)
+        
+        # Step 2: Load and apply your LoRA adapters from the Hub
+        ft_model = PeftModel.from_pretrained(base_model, ft_repo_id)
+        
+        # Step 3: Use the same tokenizer as the base model
+        tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+        tokenizer.pad_token = tokenizer.eos_token # IMPORTANT for GPT-2
+
+        # Step 4: Create the pipeline with the combined model
+        ft_generator = pipeline('text-generation', model=ft_model, tokenizer=tokenizer)
+        
     except Exception as e:
-        st.error(f"Could not load fine-tuned model from '{ft_repo_id}'. Please ensure the repo ID is correct and public.")
-        ft_generator = None
-    
+        st.error(f"Could not load fine-tuned model from '{ft_repo_id}'. Error: {e}")
+
     return (
         embedding_model, rag_generator, faiss_index, bm25_index, chunks_with_metadata, 
         set(stopwords.words('english')), ft_generator
