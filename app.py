@@ -13,8 +13,29 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
 
-# --- 1. Cached Loading of All Models and Artifacts ---
 from peft import PeftModel
+import nltk
+import ssl
+
+# This is a workaround for potential SSL certificate issues in cloud environments
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+# Force the download of NLTK data at the very start
+nltk.download('punkt')
+nltk.download('stopwords')
+
+# --- 1. Cached Loading of All Models and Artifacts ---
+
+
+# --- Your other imports ---
+import pandas as pd
+import numpy as np
+# ... and so on
 
 @st.cache_resource
 def load_resources(ft_repo_id):
