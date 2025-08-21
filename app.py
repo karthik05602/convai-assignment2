@@ -28,6 +28,7 @@ else:
 # Force the download of NLTK data at the very start
 nltk.download('punkt')
 nltk.download('stopwords')
+nltk.download('punkt_tab')
 
 # --- 1. Cached Loading of All Models and Artifacts ---
 
