@@ -110,7 +110,7 @@ st.set_page_config(page_title="Financial Q&A Bot", layout="wide")
 st.title("📈 Financial Report Q&A Bot")
 
 # IMPORTANT: Replace "YourUsername/..." with the actual repo ID of your fine-tuned model on the Hub
-FT_REPO_ID = "YourUsername/gpt2-lora-finetuned-financial-qa"
+FT_REPO_ID = "2023ac05602/gpt2-lora-financial-qa"
 
 # Load all resources
 resources = load_resources(FT_REPO_ID)
