@@ -1,0 +1,10 @@
+streamlit
+pandas
+numpy
+nltk
+transformers
+sentence-transformers
+faiss-cpu
+rank_bm25
+torch
+accelerate
