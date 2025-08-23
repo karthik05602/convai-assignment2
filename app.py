@@ -90,51 +90,46 @@ def hybrid_retrieval(query, top_n=3):
     retrieved_chunks = [chunks[idx] for idx in combined.keys()]
     return retrieved_chunks, combined
 
+
 def merge_adjacent_chunks(retrieved_chunks):
+    """
+    Merges retrieved chunks into a single string, using a clear separator
+    to preserve the structure of the information for the LLM.
+    """
     if not retrieved_chunks: return ""
     retrieved_chunks.sort(key=lambda x: x['id'])
-    return " ".join(c['text'] for c in retrieved_chunks)
+    
+    # Using a separator helps the LLM distinguish between different pieces of context
+    return "\n---\n".join(c['text'] for c in retrieved_chunks)
 
+
+# Also, replace the old generate_answer_rag function with this one
 
 def generate_answer_rag(query, context):
     """
-    Generates a concise and accurate answer, optimized for speed by
-    enforcing a strict context length limit.
+    Generates an answer with a prompt optimized for both direct questions
+    and multi-step reasoning.
     """
-    # 1. Enforce Strict Truncation
-    # We guarantee the context fits within the model's 512-token limit.
-    max_context_length = 384  # 512 (model limit) - 128 (for prompt & answer)
-    context_tokens = rag_generator.tokenizer.encode(
-        context, 
-        max_length=max_context_length, 
-        truncation=True
-    )
-    truncated_context = rag_generator.tokenizer.decode(
-        context_tokens, 
-        skip_special_tokens=True
-    )
-
-    # 2. Use a Simplified, Direct Prompt
+    # This prompt encourages the model to reason for comparative questions
     prompt = f"""
-    Based on the context, provide a short, direct answer to the question.
-    State only the single fact or value requested. Do not add extra information.
+    Based on the context, answer the question accurately and concisely.
+    If the question requires a comparison (e.g., 'increase or decrease'), briefly state the key values before the final answer.
 
     Context:
-    {truncated_context}
+    {context}
 
     Question: {query}
 
     Answer:
     """
     
-    # 3. Control Generation Parameters
     response = rag_generator(
         prompt,
-        max_new_tokens=60,          # A shorter limit for concise answers
-        repetition_penalty=1.2     # Discourages the model from repeating itself
+        max_new_tokens=100, # Increase token limit slightly for reasoning answers
+        repetition_penalty=1.2
     )
     
-    return response[0]['generated_text']    
+    return response[0]['generated_text']
 
 def answer_query_with_rag(query):
     start_time = time.time()
