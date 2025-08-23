@@ -21,6 +21,7 @@ def load_resources(ft_repo_id):
     """Load all models and pre-built RAG artifacts from files and the Hub."""
     nltk.download('punkt', quiet=True)
     nltk.download('stopwords', quiet=True)
+    nltk.download('punkt_tab', quiet=True)
 
     # --- Load RAG Artifacts (No changes here) ---
     try:
