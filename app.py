@@ -70,7 +70,7 @@ def is_query_financially_relevant(query, stop_words):
     if any(keyword in query_lower for keyword in negative_keywords): return False
     financial_keywords = ['revenue', 'income', 'asset', 'liability', 'equity', 'cash', 'profit',
         'loss', 'balance sheet', 'financial', 'cost', 'expense', 'debt',
-        'rieter', 'inventories', 'receivables', 'cogs', 'payables', 'ebitda','goodwill','provisions']
+        'rieter', 'inventories', 'receivables', 'cogs', 'payables', 'ebitda','goodwill','provisions','plant','securities','markertable']
     return any(keyword in query_lower for keyword in financial_keywords)
 
 def preprocess_query(query, stop_words):
