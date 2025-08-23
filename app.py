@@ -95,16 +95,60 @@ def merge_adjacent_chunks(retrieved_chunks):
     retrieved_chunks.sort(key=lambda x: x['id'])
     return " ".join(c['text'] for c in retrieved_chunks)
 
+
+def generate_answer_rag(query, context):
+    """
+    Generates a concise and accurate answer, optimized for speed by
+    enforcing a strict context length limit.
+    """
+    # 1. Enforce Strict Truncation
+    # We guarantee the context fits within the model's 512-token limit.
+    max_context_length = 384  # 512 (model limit) - 128 (for prompt & answer)
+    context_tokens = rag_generator.tokenizer.encode(
+        context, 
+        max_length=max_context_length, 
+        truncation=True
+    )
+    truncated_context = rag_generator.tokenizer.decode(
+        context_tokens, 
+        skip_special_tokens=True
+    )
+
+    # 2. Use a Simplified, Direct Prompt
+    prompt = f"""
+    Based on the context, provide a short, direct answer to the question.
+    State only the single fact or value requested. Do not add extra information.
+
+    Context:
+    {truncated_context}
+
+    Question: {query}
+
+    Answer:
+    """
+    
+    # 3. Control Generation Parameters
+    response = rag_generator(
+        prompt,
+        max_new_tokens=60,          # A shorter limit for concise answers
+        repetition_penalty=1.2     # Discourages the model from repeating itself
+    )
+    
+    return response[0]['generated_text']    
+
 def answer_query_with_rag(query):
     start_time = time.time()
     if not is_query_financially_relevant(query, stop_words):
         return "This question is not relevant to the financial documents.", 0.0, 0.0
+    
     retrieved, scores = hybrid_retrieval(query)
     context = merge_adjacent_chunks(retrieved)
-    if not context: return "Could not find relevant information.", 0.0, time.time() - start_time
     
-    prompt = f"Based on the context, provide a short, direct answer to the question.\nContext:\n{context}\n\nQuestion: {query}\n\nAnswer:"
-    answer = rag_generator(prompt, max_new_tokens=60, repetition_penalty=1.2)[0]['generated_text']
+    if not context: 
+        return "Could not find relevant information.", 0.0, time.time() - start_time
+        
+    # This now calls our new, optimized function
+    answer = generate_answer_rag(query, context)
     
     duration = time.time() - start_time
     confidence = np.mean(list(scores.values())) if scores else 0
