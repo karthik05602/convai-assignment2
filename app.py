@@ -112,6 +112,8 @@ def answer_query_with_rag(query):
 
 def answer_query_with_ft(query):
     start_time = time.time()
+    if not is_query_financially_relevant(query, stop_words):
+        return "This question is not relevant to the financial documents.", 0.0, 0.0
     if not ft_generator:
         return "Fine-tuned model is not available.", 0.0, 0.0
     
