@@ -98,12 +98,11 @@ def merge_adjacent_chunks(retrieved_chunks):
 
 def generate_answer_rag(query, context):
     """
-    Generates a concise and accurate answer, optimized for speed by
-    enforcing a strict context length limit.
+    Generates an answer using a Chain-of-Thought prompt to improve
+    the model's reasoning on complex or comparative questions.
     """
-    # 1. Enforce Strict Truncation
-    # We guarantee the context fits within the model's 512-token limit.
-    max_context_length = 384  # 512 (model limit) - 128 (for prompt & answer)
+    # 1. Enforce Strict Truncation (This part is correct and stays the same)
+    max_context_length = 384
     context_tokens = rag_generator.tokenizer.encode(
         context, 
         max_length=max_context_length, 
@@ -114,28 +113,40 @@ def generate_answer_rag(query, context):
         skip_special_tokens=True
     )
 
-    # 2. Use a Simplified, Direct Prompt
+    # 2. 💡 Use a Chain-of-Thought Prompt for better reasoning
     prompt = f"""
-    Based on the context, provide a short, direct answer to the question.
-    State only the single fact or value requested. Do not add extra information.
-    If the question requires a comparison (e.g., 'increase or decrease'), briefly state the key values before the final answer.
+    First, think step-by-step to answer the question based on the context.
+    1. Identify the key financial items and years in the question.
+    2. Extract the values for each item and year from the context.
+    3. Compare the values to determine the answer.
+    4. After your reasoning, state the 'Final Answer:' clearly and concisely.
 
+    ---
     Context:
     {truncated_context}
-
+    ---
     Question: {query}
 
-    Answer:
+    Reasoning:
     """
     
-    # 3. Control Generation Parameters
+    # 3. Generate the full response, including the reasoning
     response = rag_generator(
         prompt,
-        max_new_tokens=60,          # A shorter limit for concise answers
-        repetition_penalty=1.2     # Discourages the model from repeating itself
+        max_new_tokens=150, # Allow more tokens for the reasoning steps
+        repetition_penalty=1.2
     )
     
-    return response[0]['generated_text']    
+    full_response_text = response[0]['generated_text']
+    
+    # 4. Extract only the final answer for a clean display
+    if "Final Answer:" in full_response_text:
+        # Split the text at "Final Answer:" and take the part that comes after it
+        final_answer = full_response_text.split("Final Answer:")[-1].strip()
+        return final_answer
+    else:
+        # If the model fails to follow the format, return the whole text
+        return full_response_text   
 
 def answer_query_with_rag(query):
     start_time = time.time()
