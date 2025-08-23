@@ -97,56 +97,27 @@ def merge_adjacent_chunks(retrieved_chunks):
 
 
 def generate_answer_rag(query, context):
-    """
-    Generates an answer using a Chain-of-Thought prompt to improve
-    the model's reasoning on complex or comparative questions.
-    """
-    # 1. Enforce Strict Truncation (This part is correct and stays the same)
+    """Generates an answer using a final, robust prompt."""
     max_context_length = 384
-    context_tokens = rag_generator.tokenizer.encode(
-        context, 
-        max_length=max_context_length, 
-        truncation=True
-    )
-    truncated_context = rag_generator.tokenizer.decode(
-        context_tokens, 
-        skip_special_tokens=True
-    )
-
-    # 2. 💡 Use a Chain-of-Thought Prompt for better reasoning
+    context_tokens = rag_generator.tokenizer.encode(context, max_length=max_context_length, truncation=True)
+    truncated_context = rag_generator.tokenizer.decode(context_tokens, skip_special_tokens=True)
+    
     prompt = f"""
-    First, think step-by-step to answer the question based on the context.
-    1. Identify the key financial items and years in the question.
-    2. Extract the values for each item and year from the context.
-    3. Compare the values to determine the answer.
-    4. After your reasoning, state the 'Final Answer:' clearly and concisely.
+    You are a helpful financial analyst. Based on the provided context, answer the user's question.
+    - Your answer must be concise and directly address the question.
+    - For questions that require a comparison (like 'increase or decrease'), you must first state the values and then the conclusion.
+    - If the answer is not in the context, you must state: 'The answer could not be found in the provided documents.'
 
+    CONTEXT:
     ---
-    Context:
     {truncated_context}
     ---
-    Question: {query}
+    QUESTION: {query}
 
-    Reasoning:
+    ANSWER:
     """
-    
-    # 3. Generate the full response, including the reasoning
-    response = rag_generator(
-        prompt,
-        max_new_tokens=150, # Allow more tokens for the reasoning steps
-        repetition_penalty=1.2
-    )
-    
-    full_response_text = response[0]['generated_text']
-    
-    # 4. Extract only the final answer for a clean display
-    if "Final Answer:" in full_response_text:
-        # Split the text at "Final Answer:" and take the part that comes after it
-        final_answer = full_response_text.split("Final Answer:")[-1].strip()
-        return final_answer
-    else:
-        # If the model fails to follow the format, return the whole text
-        return full_response_text   
+    response = rag_generator(prompt, max_new_tokens=100, repetition_penalty=1.2)
+    return response[0]['generated_text']
 
 def answer_query_with_rag(query):
     start_time = time.time()
