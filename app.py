@@ -13,36 +13,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
 
-from peft import PeftModel
-import nltk
-import ssl
-
-# This is a workaround for potential SSL certificate issues in cloud environments
-try:
-    _create_unverified_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass
-else:
-    ssl._create_default_https_context = _create_unverified_https_context
-
-# Force the download of NLTK data at the very start
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('punkt_tab')
-
 # --- 1. Cached Loading of All Models and Artifacts ---
-
-
-# --- Your other imports ---
-import pandas as pd
-import numpy as np
-# ... and so on
+from peft import PeftModel
 
 @st.cache_resource
 def load_resources(ft_repo_id):
     """Load all models and pre-built RAG artifacts from files and the Hub."""
-    #nltk.download('punkt', quiet=True)
-    #nltk.download('stopwords', quiet=True)
+    nltk.download('punkt', quiet=True)
+    nltk.download('stopwords', quiet=True)
 
     # --- Load RAG Artifacts (No changes here) ---
     try:
@@ -89,9 +67,7 @@ def is_query_financially_relevant(query, stop_words):
     query_lower = query.lower()
     negative_keywords = ['ceo', 'stock price', 'who is', 'products', 'what are']
     if any(keyword in query_lower for keyword in negative_keywords): return False
-    financial_keywords = ['revenue', 'income', 'asset', 'liability', 'equity', 'cash', 'profit',
-        'loss', 'balance sheet', 'financial', 'cost', 'expense', 'debt',
-        'rieter', 'inventories', 'receivables', 'cogs', 'payables', 'ebitda','goodwill','provisions']
+    financial_keywords = ['revenue', 'income', 'asset', 'liability', 'equity', 'cash', 'profit', 'rieter', 'inventories', 'receivables', 'payables']
     return any(keyword in query_lower for keyword in financial_keywords)
 
 def preprocess_query(query, stop_words):
@@ -168,6 +144,13 @@ if resources:
         if user_query:
             if mode == "RAG":
                 with st.spinner("Analyzing documents with RAG..."):
+                    # --- ADD THIS DEBUGGING BLOCK ---
+                    retrieved, scores = hybrid_retrieval(user_query)
+                    context_in_streamlit = merge_adjacent_chunks(retrieved)
+                
+                    with st.expander("Click to see the context sent to the model"):
+                        st.text_area("Context:", context_in_streamlit, height=200)
+                # --- END DEBUGGING BLOCK ---
                     answer, confidence, duration = answer_query_with_rag(user_query)
             else: # Fine-Tuned Mode
                 with st.spinner("Querying the Fine-Tuned model..."):
